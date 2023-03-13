@@ -1,68 +1,87 @@
 module RandomWalkBVP
-
+__precompile__(false)
 abstract type AbstractRandomWalkerBVP end
 mutable struct RandomEnsemble{T} <: AbstractRandomWalkerBVP
     const f::Function
-    const bitmat::BitMatrix
-    const view_bitmat::BitMatrix
+    # TODO - make these subarrays
+    const bitmat::AbstractArray
+    const view_bitmat::AbstractArray
     walkers::Matrix{T}
     temp_walkers::Matrix{T}
     sol::Matrix{T}
 end
 
-function RandomEnsemble{T}(xs::Matrix{T}, f::Function) where T
+function RandomEnsemble(xs::Matrix{T}, f) where {T}
     n, m = size(xs)
-    b = [xs[i, j] == first(xs) for i in 1:n, j in 1:m] |> BitArray
-    b = shrink_grid(b)
+    mat = first(xs) .== xs
+    b = shrink_grid(mat)
     vb = @view b[b]
     w = zeros(T, n, m)
     tw = zeros(T, n, m)
     s = zeros(T, n, m)
-    RandomWalk{T}(f, b, vb, w, tw, s)
+    @show typeof(f)
+    @show typeof(b)
+    @show typeof(vb)
+    @show typeof(w)
+    @show typeof(tw)
+    @show typeof(s)
+    RandomEnsemble{T}(f, b, vb, w, tw, s)
 end
 
-walk!(re::RandomEnsemble{T}, i, j) where T = (i, j) .+ rand(((0, 1), (0, -1), (1, 0), (-1, 0)))
-valid(re::RandomEnsemble{T}, i, j) where T = re.bitmat[i, j]
+# TODO 1-liner?
+function walk!(re::RandomEnsemble{T}, i, j) where {T}
+    n = rand(((0, 1), (0, -1), (1, 0), (-1, 0)))
+    return i + n[1], j + n[2]
+end
+valid(re::RandomEnsemble{T}, i, j) where {T} = re.bitmat[i, j]
 
-function trajectory!(re::RandomEnsemble{T} i, j) where T
-    @assert all(==(zero(eltype(T))), walkers)
-    re.tempwalkers .= zero(eltype(T))
+function trajectory!(re::RandomEnsemble{T}, i, j) where {T}
+    @assert all(==(zero(eltype(T))), re.temp_walkers)
+    re.temp_walkers .= zero(eltype(T))
 
     # TODO -> keep top/bot/left/right maximums and extract that window
     while valid(re, i, j)
         i, j = walk!(re, i, j)
-        re.temp_walkers[i,j] += 1
+        re.temp_walkers[i, j] += 1
     end
-    scalar = f(i, j)
+    scalar = re.f(i, j)
 
     re.sol .+= re.temp_walkers .* scalar
 
-    @assert walkers != zeros(size(sol))
-    walkers .= zero(eltype(T))
-    @assert all(==(0), walkers)
-    return sol
+    @assert re.temp_walkers != zeros(size(re.temp_walkers))
+    re.temp_walkers .= zero(eltype(T))
+    @assert all(==(0), re.temp_walkers)
+    return re.sol
 end
 
-function shrink_grid(grid::BitMatrix)
-    left = findfirst(any.(>(0), eachcol(grid)))
+function shrink_grid(grid)
     right = findlast(any.(>(0), eachcol(grid)))
-
-    top = findfirst(any.(>(0), eachrow(grid)))
     bot = findlast(any.(>(0), eachrow(grid)))
-    # TODO - handle corner cases where ±1 might not be inside the array
-    @view grid[top-1:bot+1, left-1:right+1]
+    any(<(3), (right, bot)) && error("Grid too small")
+    # TODO - add warnings for short boundaries on right/bot
+    n, m = size(grid)
+    left = findfirst(any.(>(0), eachcol(grid)))
+    top = findfirst(any.(>(0), eachrow(grid)))
+
+    # 
+    left -= left != 1
+    top -= top != 1
+    bot += bot != m
+    right += right != n
+
+    @view grid[top:bot, left:right]
 end
 
-function solve(re::RandomEnsemble{T}, n::Int) where T
+function solve(re::RandomEnsemble{T}, n::Int) where {T}
     n, m = size(re.bitmat)
     while all(<(n), view_bitmat)
         for j in 1:m
             for i in 1:n
                 # Walkers
                 # Evolucionar caminante hasta frontera 
-                    # agregar a matriz de walkers
-                    # guardar valor en frontera
-                    # mul! sol <- fend * num_walks
+                # agregar a matriz de walkers
+                # guardar valor en frontera
+                # mul! sol <- fend * num_walks
                 caminante2!(i, j, mat, sol, numero_de_caminantes, f)
             end
             all(>=(n), view_walkers) && break
@@ -71,7 +90,7 @@ function solve(re::RandomEnsemble{T}, n::Int) where T
     return re
 end
 
-export RandomWalk
+export RandomEnsemble
 export valid
 export walk!
 export trajectory!
