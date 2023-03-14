@@ -71,8 +71,16 @@ function trajectory!(re::RandomEnsemble{T,F}, i, j) where {T,F}
     #end
 
     # TODO -> keep top/bot/left/right maximums and extract that window
+    top = i
+    bot = i
+    left = j
+    right = j
     while valid(re, i, j)
         i, j = walk!(i, j)
+        top = min(i, top)
+        bot = max(i, bot)
+        right = max(j, right)
+        left = min(j, left)
         @inbounds re.temp_walkers[i, j] += 1
     end
     scalar = re.f(i, j)
@@ -83,8 +91,8 @@ function trajectory!(re::RandomEnsemble{T,F}, i, j) where {T,F}
     #@tullio re.sol[i, j] += re.temp_walkers[i, j] * scalar
     #re.walkers .+= re.temp_walkers
     #@tullio re.walkers[i, j] += re.temp_walkers[i, j]
-    @turbo for j in 1:m
-        for i in 1:n
+    @turbo for j in left:right
+        for i in top:bot
             re.walkers[i, j] += re.temp_walkers[i, j]
             re.sol[i, j] += re.temp_walkers[i, j] * scalar
             re.temp_walkers[i, j] = myzero
