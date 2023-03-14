@@ -6,8 +6,8 @@ __precompile__(false)
 abstract type AbstractRandomWalkerBVP end
 mutable struct RandomEnsemble{T,F} <: AbstractRandomWalkerBVP
     const f::F
-    # TODO - make these subarrays
     const bitmat::BitMatrix
+    # TODO - make these subarrays
     #const view_bitmat::AbstractArray{S, 2}
     walkers::Matrix{T}
     temp_walkers::Matrix{T}
@@ -29,13 +29,9 @@ function shrink_grid(grid)
     @view grid[top-1:bot+1, left-1:right+1]
 end
 
-# TODO - Matrix{Bool} hack :(
 function RandomEnsemble(xs::Matrix{T}, f::F) where {T,F}
-    if T == Bool
-        TT = Float64
-    else
-        TT = T
-    end
+
+    TT = T == Bool ? Float64 : T # Handle Matrix{Bool}
     mat = first(xs) .!= xs
     b = shrink_grid(mat) |> BitArray
     n, m = size(b)
@@ -53,24 +49,13 @@ end
     @inbounds j += n[2]
     return i, j
 end
+
 valid(re::RandomEnsemble{T,F}, i, j) where {T,F} = re.bitmat[i, j]
 
 function trajectory!(re::RandomEnsemble{T,F}, i, j) where {T,F}
     n, m = size(re.sol)
-    if !valid(re, i, j)
-        return
-    end
-    #@assert all(==(0), re.temp_walkers)::Bool
-    myzero = zero(eltype(T))
-    #re.temp_walkers .= zero(eltype(T))
-    #@tullio re.temp_walkers[i, j] = myzero
-    #@turbo for j in 1:m
-    #    for i in 1:n
-    #        re.temp_walkers[i, j] = myzero
-    #    end
-    #end
+    !valid(re, i, j) && return
 
-    # TODO -> keep top/bot/left/right maximums and extract that window
     top = i
     bot = i
     left = j
@@ -83,14 +68,9 @@ function trajectory!(re::RandomEnsemble{T,F}, i, j) where {T,F}
         left = min(j, left)
         @inbounds re.temp_walkers[i, j] += 1
     end
-    scalar = re.f(i, j)
 
-    # update!
-    #re.sol[:,:] .+= re.temp_walkers .* scalar
-    # Idea - single pass?
-    #@tullio re.sol[i, j] += re.temp_walkers[i, j] * scalar
-    #re.walkers .+= re.temp_walkers
-    #@tullio re.walkers[i, j] += re.temp_walkers[i, j]
+    scalar = re.f(i, j)
+    myzero = zero(eltype(T))
     @turbo for j in left:right
         for i in top:bot
             re.walkers[i, j] += re.temp_walkers[i, j]
@@ -98,12 +78,6 @@ function trajectory!(re::RandomEnsemble{T,F}, i, j) where {T,F}
             re.temp_walkers[i, j] = myzero
         end
     end
-
-    #@assert any(!=(0), re.temp_walkers)::Bool
-    # Actually only need to clear before you use it, not twice!
-    #re.temp_walkers .= zero(eltype(T))
-    #@assert all(==(0), re.temp_walkers)::Bool
-    return
 end
 
 
