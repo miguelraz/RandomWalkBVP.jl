@@ -1,8 +1,6 @@
 module RandomWalkBVP
-using Tullio
 using LoopVectorization
 
-__precompile__(false)
 abstract type AbstractRandomWalkerBVP end
 mutable struct RandomEnsemble{T,F} <: AbstractRandomWalkerBVP
     const f::F
@@ -30,7 +28,6 @@ function shrink_grid(grid)
 end
 
 function RandomEnsemble(xs::Matrix{T}, f::F) where {T,F}
-
     TT = T == Bool ? Float64 : T # Handle Matrix{Bool}
     mat = first(xs) .!= xs
     b = shrink_grid(mat) |> BitArray
@@ -96,11 +93,5 @@ function solve!(re::RandomEnsemble{T,F}, k::Int) where {T,F}
 end
 
 export RandomEnsemble
-export valid
-export walk!
-export trajectory!
-export shrink_grid
-export solve!
-export RandomWalkBVP
-
+export valid, walk!, trajectory!, solve!, shrink_grid
 end
