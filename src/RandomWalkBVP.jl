@@ -50,8 +50,8 @@ end
 valid(re::RandomEnsemble{T,F}, i, j) where {T,F} = re.bitmat[i, j]
 
 function trajectory!(re::RandomEnsemble{T,F}, i, j) where {T,F}
-    n, m = size(re.sol)
     !valid(re, i, j) && return
+    n, m = size(re.sol)
 
     top = i
     bot = i

@@ -1,10 +1,11 @@
 using RandomWalkBVP
+using HDF5
+using Random
 using Test
 
-using Tullio
-using Folds
-using Random
-using HDF5
+#using Tullio
+#using Folds
+#using Random
 
 #@testset "RandomWalkBVP" showtiming=true begin
 @testset "Construction" showtiming = true begin
